@@ -256,7 +256,9 @@ class GroupRead(ORMModelMixin, GroupBase):
 
 
 class GroupFilter(BaseModel):
-    section_id: int = Field(
+    model_config = ConfigDict(populate_by_name=True)
+
+    section_id: int | None = Field(
         default=None,
         gt=0,
         alias="section-id",
