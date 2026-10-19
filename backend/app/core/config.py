@@ -33,6 +33,13 @@ class Settings(BaseSettings):
     jwt_secret_key: str = Field(default="test-secret-key")
     jwt_ttl_minutes: int = Field(default=1440)
 
+    # Comma-separated list of origins allowed to call the API from a browser.
+    cors_origins: str = Field(default="http://localhost:5173,http://localhost:8080")
+
+    @property
+    def cors_origins_list(self) -> list[str]:
+        return [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]
+
     @property
     def database_url(self) -> str:
         """Async connection string for SQLAlchemy."""
