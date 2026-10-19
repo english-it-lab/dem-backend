@@ -5,6 +5,7 @@ on:
     branches:
       - main
 
+# Deploy job removed 2026-10: the server was decommissioned. See git history to restore.
 jobs:
   ruff:
     runs-on: ubuntu-latest
@@ -28,9 +29,6 @@ jobs:
         working-directory: ${{ vars.PROJECT_FOLDER }}/${{ vars.SERVICE_FOLDER }}
         run: uv run ruff check --output-format=github .
 
-  resolve-env:
-    if: ${{ github.event_name != 'pull_request' }}
-    uses: PANiXiDA-Infrastructure/ci-cd/.github/workflows/resolve-environment.yml@main
 
   tests:
     runs-on: ubuntu-latest
@@ -62,26 +60,3 @@ jobs:
         registry-user: ${{ secrets.REGISTRY_USER }}
         registry-token: ${{ secrets.REGISTRY_TOKEN }}
 
-  deploy:
-    if: ${{ github.event_name != 'pull_request' }}
-    needs: [ build, resolve-env, tests ]
-    runs-on: ubuntu-latest
-    environment: ${{ needs.resolve-env.outputs.environment }}
-    steps:
-      - uses: PANiXiDA-Infrastructure/ci-cd/.github/actions/ssh-docker-deploy@main
-        with:
-          server-user: ${{ vars.SERVER_USER }}
-          server-host: ${{ vars.SERVER_HOST }}
-          ssh-port: ${{ vars.SERVER_SSH_PORT }}
-          ssh-private-key: ${{ secrets.SERVER_SSH_PRIVATE_KEY }}
-
-          service-folder: ${{ vars.PROJECT_FOLDER }}/${{ github.event.repository.name }}/${{ vars.SERVICE_NAME }}
-
-          container-name: ${{ github.event.repository.name }}-${{ vars.SERVICE_NAME }}-${{ vars.ENV_SUFFIX }}
-          image: ${{ vars.REGISTRY_URL }}/${{ github.repository }}/${{ vars.SERVICE_NAME }}:${{ github.run_number }}
-
-          env-file: ${{ secrets.ENV_FILE }}
-
-          registry-url: ${{ vars.REGISTRY_URL }}
-          registry-user: ${{ secrets.REGISTRY_USER }}
-          registry-token: ${{ secrets.REGISTRY_TOKEN }}
