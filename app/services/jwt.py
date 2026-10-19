@@ -1,7 +1,7 @@
 import time
 from datetime import UTC, datetime, timedelta
-from http.client import HTTPException
 
+from fastapi import HTTPException
 from jose import jwt
 
 from app.core.config import settings

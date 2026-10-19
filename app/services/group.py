@@ -65,7 +65,7 @@ class GroupService:
         if group is None:
             return "NOT_FOUND"
 
-        if not self._repository.is_leader(group_id, user_id):
+        if not await self._repository.is_leader(group_id, user_id):
             return "NOT_LEADER"
 
         return await self._repository.update_group(group, payload)
@@ -76,7 +76,7 @@ class GroupService:
         if group is None:
             return "NOT_FOUND"
 
-        if not self._repository.is_leader(group_id, user_id):
+        if not await self._repository.is_leader(group_id, user_id):
             return "NOT_LEADER"
 
         await self._repository.delete_group(group)

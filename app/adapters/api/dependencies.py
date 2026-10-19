@@ -150,7 +150,8 @@ def get_topic_service(
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> TopicService:
     topic_repository = TopicRepository(session)
-    return TopicService(topic_repository)
+    section_repository = SectionRepository(session)
+    return TopicService(topic_repository, section_repository)
 
 
 def get_draw_service(
@@ -160,6 +161,7 @@ def get_draw_service(
         topic_repo=TopicRepository(session),
         group_repo=GroupRepository(session),
         group_topic_repo=GroupTopicRepository(session),
+        section_repo=SectionRepository(session),
     )
 
 

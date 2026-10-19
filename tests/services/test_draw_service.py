@@ -2,11 +2,16 @@ import asyncio
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
 
+import pytest
+from fastapi import HTTPException
+
 from app.schemas import GroupFilter
 from app.services.draw import DrawService
 
 
-def make_service(groups, rows, topics=()):
+def make_service(groups, rows, topics=(), section_exists=True):
+    section_repo = MagicMock()
+    section_repo.get_section_by_id = AsyncMock(return_value=SimpleNamespace(id=3) if section_exists else None)
     topic_repo = MagicMock()
     topic_repo.list_topics = AsyncMock(return_value=list(topics))
     group_repo = MagicMock()
@@ -15,7 +20,8 @@ def make_service(groups, rows, topics=()):
     group_topic_repo.get_by_section = AsyncMock(return_value=rows)
     group_topic_repo.clear_section = AsyncMock()
     group_topic_repo.create = AsyncMock()
-    return DrawService(topic_repo, group_repo, group_topic_repo), topic_repo, group_repo, group_topic_repo
+    service = DrawService(topic_repo, group_repo, group_topic_repo, section_repo)
+    return service, topic_repo, group_repo, group_topic_repo
 
 
 def test_get_results_groups_rows_by_group_and_keeps_empty_groups():
@@ -75,3 +81,22 @@ def test_run_draw_reports_groups_left_without_topics():
 
     assert len(result.empty_groups) == 1
     assert sum(len(r.topics) for r in result.results) == 1
+
+
+def test_run_draw_unknown_section_returns_404():
+    service, _, _, group_topic_repo = make_service([], [], section_exists=False)
+
+    with pytest.raises(HTTPException) as exc_info:
+        asyncio.run(service.run_draw(3))
+
+    assert exc_info.value.status_code == 404
+    group_topic_repo.clear_section.assert_not_awaited()
+
+
+def test_get_results_unknown_section_returns_404():
+    service, *_ = make_service([], [], section_exists=False)
+
+    with pytest.raises(HTTPException) as exc_info:
+        asyncio.run(service.get_results(3))
+
+    assert exc_info.value.status_code == 404

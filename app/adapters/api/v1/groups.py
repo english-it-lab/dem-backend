@@ -59,7 +59,7 @@ async def create_group(
             )
 
 
-@router.patch("/", response_model=GroupRead)
+@router.patch("/{group_id}", response_model=GroupRead)
 async def update_group(
     user_id: Annotated[int, Depends(get_current_user)],
     group_id: int,
@@ -176,7 +176,7 @@ async def reject_group(
             )
 
 
-@router.post("/{group-id}/invite-token")
+@router.post("/{group_id}/invite-token")
 async def invite_token(
     group_id: int,
     person_id: Annotated[int, Depends(get_current_user)],
