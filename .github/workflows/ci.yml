@@ -16,59 +16,40 @@ jobs:
         with:
           enable-cache: true
 
+      - name: Install dependencies
+        working-directory: ${{ vars.PROJECT_FOLDER }}/${{ vars.SERVICE_FOLDER }}
+        run: uv sync --frozen
+
       - name: Check formatting
         working-directory: ${{ vars.PROJECT_FOLDER }}/${{ vars.SERVICE_FOLDER }}
-        run: uvx ruff format . --check --diff
+        run: uv run ruff format . --check --diff
 
       - name: Run linter
         working-directory: ${{ vars.PROJECT_FOLDER }}/${{ vars.SERVICE_FOLDER }}
-        run: uvx ruff check --output-format=github .
+        run: uv run ruff check --output-format=github .
 
   resolve-env:
     if: ${{ github.event_name != 'pull_request' }}
     uses: PANiXiDA-Infrastructure/ci-cd/.github/workflows/resolve-environment.yml@main
 
   tests:
-      runs-on: ubuntu-latest
-      needs: [ ruff ]
-      steps:
-          -   uses: actions/checkout@v4
+    runs-on: ubuntu-latest
+    needs: [ ruff ]
+    steps:
+      - uses: actions/checkout@v4
 
-          -   name: Install system dependencies  # ← ПЕРВЫЙ ШАГ!
-              run: |
-                  sudo apt-get update -qq
-                  sudo apt-get install -y python3.12-dev gcc build-essential
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
 
-          -   uses: actions/setup-python@v5  # ← ВТОРОЙ
-              with:
-                  python-version: '3.12'
+      - name: Install dependencies
+        working-directory: ${{ vars.PROJECT_FOLDER }}/${{ vars.SERVICE_FOLDER }}
+        run: uv sync --frozen
 
-          -   name: Generate openapi_server
-              working-directory: ${{ vars.PROJECT_FOLDER }}/${{ vars.SERVICE_FOLDER }}
-              run: |
-                  set -e
-                  pip install openapi-generator-cli==7.17.0 -qq
-                  rm -rf generated openapi_server
-                  for yaml_file in resources/api/v1/*.yaml; do
-                    echo "Generating from $yaml_file"
-                    openapi-generator-cli generate \
-                      -i "$yaml_file" \
-                      -g python-fastapi \
-                      -o generated/
-                  done
-                  cp -r generated/src/openapi_server openapi_server
-                  grep -v "uvloop==0.21.0" generated/requirements.txt > openapi_server/requirements.txt || true
-                  pip install -r openapi_server/requirements.txt
-                  rm -rf generated
-
-          -   name: Install project deps and test
-              working-directory: ${{ vars.PROJECT_FOLDER }}/${{ vars.SERVICE_FOLDER }}
-              run: |
-                  pip install --only-binary=all \
-                    fastapi sqlalchemy asyncpg alembic pydantic-settings python-dotenv python-jose[cryptography] pytest pytest-asyncio httpx aiofiles email-validator reportlab python-docx \
-                    || pip install fastapi sqlalchemy asyncpg alembic pydantic-settings python-dotenv python-jose[cryptography] pytest pytest-asyncio httpx aiofiles email-validator reportlab python-docx
-                  pip install --only-binary=httptools,uvloop,websockets "uvicorn[standard]" || pip install uvicorn  # Fallback to no extras
-                  PYTHONPATH=. pytest tests/ -s -v --tb=short
+      - name: Run tests
+        working-directory: ${{ vars.PROJECT_FOLDER }}/${{ vars.SERVICE_FOLDER }}
+        run: uv run pytest -v --tb=short
 
   build:
       if: ${{ github.event_name != 'pull_request' }}

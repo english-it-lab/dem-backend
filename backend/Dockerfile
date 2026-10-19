@@ -1,7 +1,9 @@
-FROM python:3.12-slim AS base
+FROM python:3.12-slim
 
 ENV UV_PROJECT_ENVIRONMENT=/app/.venv \
     UV_CACHE_DIR=/app/.uv_cache \
+    UV_FROZEN=1 \
+    UV_NO_DEV=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
 
@@ -12,16 +14,6 @@ RUN pip install --no-cache-dir uv
 COPY pyproject.toml uv.lock ./
 RUN uv sync --frozen --no-dev
 
-RUN apt-get update && \
-    apt-get install -y \
-    openjdk-21-jdk \
-    build-essential && \
-    rm -rf /var/lib/apt/lists/*
-
-COPY generate_api.sh /generate_api.sh
-RUN chmod +x /generate_api.sh
-
-COPY resources resources
 COPY alembic alembic
 COPY app app
 COPY alembic.ini main.py ./
