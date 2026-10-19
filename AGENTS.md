@@ -1,50 +1,109 @@
 # AGENTS.md
 
-## Repo layout
+Orientation for coding agents (Claude Code, Codex, …) and new contributors. This is a map and a
+set of rules, not implementation documentation: details live in the code, `README.md` and `docs/`.
 
-| Path | Language | Package manager | Description |
-|------|----------|-----------------|-------------|
-| `/` (repo root) | Python 3.12 | uv | FastAPI API + PostgreSQL (the deployable) |
-| `docs/` | — | — | Technical specification and charters |
+## What this is
 
+Digital Event Manager (DEM) API: a FastAPI + PostgreSQL service for running student events
+(sections, participants, juries, scoring, topic draws, programme generation). The frontend is a
+separate repo (`dem-frontend`) that calls this API on the relative path `/api/v1`.
 
-## Backend — commands (all require `uv run` prefix)
+| Path | What |
+|------|------|
+| `/` (repo root) | Python 3.12 app managed with **uv** (`pyproject.toml` + `uv.lock`) |
+| `docs/` | Technical specification and project charters (Russian) |
+
+All commands run from the repo root.
+
+## Commands
 
 ```bash
-uv sync                                  # install deps into .venv
-uv run uvicorn app.main:app --reload     # dev server on :8000
-uv run alembic upgrade head              # apply migrations (DB must be running)
-uv run alembic revision -m "..." --autogenerate  # create new migration
-uv run pytest                            # run all tests (mock-based, no DB needed)
-uv run ruff check --fix                  # lint
-uv run ruff format                       # format
-docker compose up db -d                  # database only (default dev mode)
-docker compose up --build                # full stack (API + PG 16)
+uv sync                                          # install deps into .venv
+cp .env.example .env                             # local config (defaults work with compose db)
+docker compose up db -d                          # PostgreSQL only (default dev mode)
+docker compose up --build                        # full stack: api (hot reload) + PostgreSQL 16
+uv run alembic upgrade head                      # apply migrations (DB must be running)
+uv run alembic revision --autogenerate -m "..."  # new migration after changing app/models
+uv run uvicorn app.main:app --reload             # dev server on :8000, Swagger at /docs
+uv run pytest                                    # all tests (mock-based, no DB needed)
+uv run pytest tests/api/test_sections.py -k name # one file / one test
+uv run ruff check --fix && uv run ruff format    # lint + format
+uv run ruff format --check . && uv run ruff check .   # what CI runs
 ```
 
-## Backend — layered architecture (do NOT break)
+## Run modes
+
+| Mode | How | Notes |
+|------|-----|-------|
+| DB in Docker, API local (default) | `docker compose up db -d` + `uv run uvicorn …` | `.env` has `DB_HOST=localhost` |
+| Everything in Docker | `docker compose up --build` | the api container overrides `DB_HOST=db`; `app/` is mounted and reloads |
+
+The api container runs migrations on start (`docker-entrypoint.sh`). Browser origins that may call
+the API directly are listed in `CORS_ORIGINS` (`.env`); the frontend normally goes through a proxy,
+so the defaults (`:5173`, `:8080`) are enough.
+
+## Where things live
 
 ```
-adapter (FastAPI routers) -> service (business logic) -> repository (SQLAlchemy)
+app/main.py                       create_app(): CORS + mounts the v1 router under /api/v1
+app/core/config.py                Settings (pydantic-settings) read from env / .env
+app/db/session.py                 async engine + session factory
+app/models/__init__.py            ALL SQLAlchemy ORM models, one file (Alembic metadata)
+app/schemas/__init__.py           ALL Pydantic DTOs, one file; pattern XBase / XCreate / XRead / XUpdate
+app/enums/                        shared enums
+app/repositories/<entity>.py      one repository class per file; takes an AsyncSession
+app/services/<entity>.py          one service class per file (business rules); also pdf_generator,
+                                  doc_generator, send_mails, jwt, email_confirmation
+app/adapters/api/dependencies.py  DI factories get_*_service and get_current_user — the only place
+                                  that imports repositories
+app/adapters/api/v1/<resource>.py one APIRouter per resource; mounted in v1/__init__.py
+alembic/versions/                 migrations, linear chain
+tests/{api,services,core,schemas} pytest; tests/api mirrors adapters/api/v1
+docs/                             spec and charters
 ```
 
-Routers import services, never repositories. Schemas are Pydantic models in `app/schemas/`. ORM models in `app/models/`.
+## Architecture rules (do not break)
 
+```
+router (adapters/api/v1) -> service (services) -> repository (repositories) -> DB
+```
 
-## Backend — lint quirks
+- Routers import services and schemas only. Repositories are wired to services in
+  `app/adapters/api/dependencies.py`, nowhere else.
+- Business rules live in services. Routers validate input, call one service method, map errors.
+- `HTTPException` comes from `fastapi` (never `http.client`).
+- Any change to `app/models` ships with an autogenerated Alembic migration in the same PR. Review
+  the generated diff; autogenerate misses renames and some constraints.
+- New endpoint checklist: schema → repository → service → factory in `dependencies.py` →
+  router + mount in `app/adapters/api/v1/__init__.py` → tests in `tests/api/`.
 
-- `alembic/` is excluded from ruff (set in `pyproject.toml`).
-- Ruff config lives in `pyproject.toml`.
+## Quality bar
 
-## Backend — tests
+- Ruff is the linter and formatter (`pyproject.toml`): line length 119, rules
+  `E W F I B C4 UP ARG SIM`, double quotes; `alembic/` is excluded. Pre-commit runs both hooks.
+- Tests are required for every new or changed endpoint. Pattern: module-level `TestClient(app)`,
+  a `MagicMock` service with `AsyncMock` methods, an `autouse` fixture that sets
+  `app.dependency_overrides[get_x_service]` and clears it after `yield`. Override
+  `get_current_user` the same way for protected routes. Example: `tests/api/test_sections.py`.
+- CI (`.github/workflows/ci.yml`): `ruff format --check` → `ruff check` → `pytest` on every PR;
+  a Docker image is built and pushed on push to `main`. There is no deploy step (no server).
+- Commits: Conventional Commits in English (`feat:`, `fix:`, `docs:`, `build:`, `ci:`, …).
 
-All tests use `MagicMock` / `AsyncMock` with FastAPI `TestClient` + `dependency_overrides`. No real database needed. Located in `tests/`.
+## Known gaps (as of 2026-10)
 
-## Databases
+- **Auth contract does not match the frontend.** This API is passwordless:
+  `POST /auth/request-code` (email) → `POST /auth/login` (email + code) → `access_token`;
+  people live under `/people` and `/person/me`. The frontend still calls `/auth/register`,
+  `/auth/login` with a password, `/auth/logout`, `/auth/refresh_tokens` and `/users/`, none of
+  which exist here. Aligning the two is open work.
+- No endpoint for event applications (the frontend stubs `POST /events/{id}/applications`).
+- The Telegram bot was removed from `main` in 2026-10; look in git history / other branches.
+- Tests are mock-based only; nothing exercises a real database.
 
-- **Backend**: PostgreSQL (`digital_events`). Connection URL built in `app/core/config.py` from env vars. Copy `.env.example` to `.env` (defaults to `DB_HOST=localhost` for `docker compose up db`; the api container overrides it to `db`).
+## Keeping this file current
 
-## Pre-commit
-
-Installed at root: `ruff --fix` + `ruff format`. Will catch issues before commit.
-
+Update `AGENTS.md` in the same PR whenever you add or move a top-level directory, change a
+command, a run mode, an architecture rule or close a known gap. Keep it a map plus rules: no
+function signatures, schema fields or step-by-step implementation notes. Do not duplicate
+`README.md`; link to it instead.
