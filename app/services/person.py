@@ -6,7 +6,7 @@ from app.schemas import PersonRead, PersonUpdate
 
 
 class PersonService:
-    """Business logic for jury score operations."""
+    """Business logic for person profiles."""
 
     def __init__(self, person_repository: PersonRepository) -> None:
         self._person_repository = person_repository

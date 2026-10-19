@@ -13,7 +13,7 @@ class Settings(BaseSettings):
     api_v1_prefix: str = Field(default="/api/v1")
     environment: str = Field(default="local")
 
-    db_host: str = Field(default="db")
+    db_host: str = Field(default="localhost")
     db_port: int = Field(default=5432)
     db_user: str = Field(default="postgres")
     db_password: str = Field(default="postgres")
@@ -44,11 +44,6 @@ class Settings(BaseSettings):
     def database_url(self) -> str:
         """Async connection string for SQLAlchemy."""
         return f"postgresql+asyncpg://{self.db_user}:{self.db_password}@{self.db_host}:{self.db_port}/{self.db_name}"
-
-    @property
-    def sync_database_url(self) -> str:
-        """Sync connection string for Alembic."""
-        return f"postgresql://{self.db_user}:{self.db_password}@{self.db_host}:{self.db_port}/{self.db_name}"
 
 
 @lru_cache
