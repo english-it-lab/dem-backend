@@ -18,15 +18,12 @@ jobs:
           enable-cache: true
 
       - name: Install dependencies
-        working-directory: ${{ vars.PROJECT_FOLDER }}/${{ vars.SERVICE_FOLDER }}
         run: uv sync --frozen
 
       - name: Check formatting
-        working-directory: ${{ vars.PROJECT_FOLDER }}/${{ vars.SERVICE_FOLDER }}
         run: uv run ruff format . --check --diff
 
       - name: Run linter
-        working-directory: ${{ vars.PROJECT_FOLDER }}/${{ vars.SERVICE_FOLDER }}
         run: uv run ruff check --output-format=github .
 
 
@@ -42,11 +39,9 @@ jobs:
           enable-cache: true
 
       - name: Install dependencies
-        working-directory: ${{ vars.PROJECT_FOLDER }}/${{ vars.SERVICE_FOLDER }}
         run: uv sync --frozen
 
       - name: Run tests
-        working-directory: ${{ vars.PROJECT_FOLDER }}/${{ vars.SERVICE_FOLDER }}
         run: uv run pytest -v --tb=short
 
   build:
@@ -54,7 +49,7 @@ jobs:
       needs: [ ruff ]
       uses: PANiXiDA-Infrastructure/ci-cd/.github/workflows/docker-build.yml@main
       with:
-        service-folder: ${{ vars.SERVICE_FOLDER }}
+        service-folder: .
         image: ${{ vars.REGISTRY_URL }}/${{ github.repository }}/${{ vars.SERVICE_NAME }}:${{ github.run_number }}
       secrets:
         registry-user: ${{ secrets.REGISTRY_USER }}

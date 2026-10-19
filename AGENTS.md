@@ -4,15 +4,13 @@
 
 | Path | Language | Package manager | Description |
 |------|----------|-----------------|-------------|
-| `backend/` | Python 3.12 | uv | FastAPI API + PostgreSQL (the deployable) |
+| `/` (repo root) | Python 3.12 | uv | FastAPI API + PostgreSQL (the deployable) |
 | `docs/` | — | — | Technical specification and charters |
 
-Always run commands from `backend/`.
 
 ## Backend — commands (all require `uv run` prefix)
 
 ```bash
-cd backend
 uv sync                                  # install deps into .venv
 uv run uvicorn app.main:app --reload     # dev server on :8000
 uv run alembic upgrade head              # apply migrations (DB must be running)
@@ -36,7 +34,7 @@ Routers import services, never repositories. Schemas are Pydantic models in `app
 ## Backend — lint quirks
 
 - `alembic/` is excluded from ruff (set in `pyproject.toml`).
-- Ruff config lives in `backend/pyproject.toml`, not at root.
+- Ruff config lives in `pyproject.toml`.
 
 ## Backend — tests
 
