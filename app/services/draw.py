@@ -5,6 +5,7 @@ from fastapi import HTTPException, status
 
 from app.repositories.group import GroupRepository
 from app.repositories.group_topic import GroupTopicRepository
+from app.repositories.section import SectionRepository
 from app.repositories.topic import TopicRepository
 from app.schemas import DrawGroupRead, DrawResultRead, DrawRunResult, DrawTopicRead, GroupFilter
 
@@ -19,13 +20,16 @@ class DrawService:
         topic_repo: TopicRepository,
         group_repo: GroupRepository,
         group_topic_repo: GroupTopicRepository,
+        section_repo: SectionRepository,
     ) -> None:
         self.topic_repo = topic_repo
         self.group_repo = group_repo
         self.group_topic_repo = group_topic_repo
+        self.section_repo = section_repo
 
     async def run_draw(self, section_id: int) -> DrawRunResult:
         """Run the draw for a section, replacing any previous assignment."""
+        await self._ensure_section_exists(section_id)
         topics = list(await self.topic_repo.list_topics(section_id))
         groups = list(await self.group_repo.list_groups(GroupFilter(section_id=section_id)))
 
@@ -73,6 +77,7 @@ class DrawService:
 
     async def get_results(self, section_id: int) -> list[DrawResultRead]:
         """Return the persisted draw for a section; groups without topics are included with an empty list."""
+        await self._ensure_section_exists(section_id)
         groups = await self.group_repo.list_groups(GroupFilter(section_id=section_id))
         rows = await self.group_topic_repo.get_by_section(section_id)
 
@@ -88,3 +93,7 @@ class DrawService:
             DrawResultRead(group_id=group.id, group_name=group.name, topics=topics_by_group[group.id])
             for group in groups
         ]
+
+    async def _ensure_section_exists(self, section_id: int) -> None:
+        if await self.section_repo.get_section_by_id(section_id) is None:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "Секция не найдена")

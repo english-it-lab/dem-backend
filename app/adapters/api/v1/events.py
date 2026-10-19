@@ -9,7 +9,7 @@ from app.adapters.api.dependencies import (
 )
 from app.schemas import EventCreate, EventRead
 from app.services.doc_generator import DocGeneratorService
-from app.services.events import EventProgramService
+from app.services.event import EventProgramService
 from app.services.pdf_generator import PDFGeneratorService
 
 router = APIRouter(tags=["events"])

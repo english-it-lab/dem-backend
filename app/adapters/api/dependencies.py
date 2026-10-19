@@ -9,7 +9,6 @@ from app.db.session import get_db_session
 from app.repositories.committee_member import CommitteeMemberRepository
 from app.repositories.course import CourseRepository
 from app.repositories.event import EventRepository
-from app.repositories.events import EventRepository as EventProgramRepository
 from app.repositories.faculty import FacultyRepository
 from app.repositories.group import GroupRepository
 from app.repositories.group_participant import GroupParticipantRepository
@@ -31,14 +30,14 @@ from app.repositories.technical_requirement import (
 from app.repositories.textbook_level import TextbookLevelRepository
 from app.repositories.topic import TopicRepository
 from app.repositories.university import UniversityRepository
-from app.repositories.venues import VenueRepository
+from app.repositories.venue import VenueRepository
 from app.schemas import AuthPayload
 from app.services.auth import AuthService
 from app.services.committee import CommitteeService
 from app.services.doc_generator import DocGeneratorService
 from app.services.draw import DrawService
 from app.services.email_confirmation import EmailConfirmationService
-from app.services.events import EventProgramService
+from app.services.event import EventProgramService
 from app.services.group import GroupService
 from app.services.group_invites import GroupInviteService
 from app.services.jury import JuryService
@@ -56,7 +55,7 @@ from app.services.section_jury import SectionJuryService
 from app.services.technical_requirement import TechnicalRequirementService
 from app.services.topic import TopicService
 from app.services.university import UniversityService
-from app.services.venues import VenuesService
+from app.services.venue import VenueService
 
 
 async def get_session() -> AsyncIterator[AsyncSession]:
@@ -150,7 +149,8 @@ def get_topic_service(
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> TopicService:
     topic_repository = TopicRepository(session)
-    return TopicService(topic_repository)
+    section_repository = SectionRepository(session)
+    return TopicService(topic_repository, section_repository)
 
 
 def get_draw_service(
@@ -160,6 +160,7 @@ def get_draw_service(
         topic_repo=TopicRepository(session),
         group_repo=GroupRepository(session),
         group_topic_repo=GroupTopicRepository(session),
+        section_repo=SectionRepository(session),
     )
 
 
@@ -186,7 +187,7 @@ def get_event_program_service(
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> EventProgramService:
     """Dependency for event program service."""
-    event_repo = EventProgramRepository(session)
+    event_repo = EventRepository(session)
     section_repo = SectionRepository(session)
     participant_repo = ParticipantRepository(session)
     committee_repo = CommitteeMemberRepository(session)
@@ -211,11 +212,11 @@ def get_doc_generator_service() -> DocGeneratorService:
     return DocGeneratorService()
 
 
-def get_venues(
+def get_venue_service(
     session: Annotated[AsyncSession, Depends(get_session)],
-) -> VenuesService:
+) -> VenueService:
     repository = VenueRepository(session)
-    return VenuesService(repository)
+    return VenueService(repository)
 
 
 def get_organizer_repository(
