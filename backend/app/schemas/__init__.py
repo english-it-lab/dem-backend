@@ -5,7 +5,7 @@ from enum import StrEnum
 from typing import Annotated, Literal
 
 from annotated_types import MaxLen
-from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, StringConstraints, field_validator
 
 from app.enums.group import GroupStatus
 
@@ -221,13 +221,21 @@ class EventSectionRead(ORMModelMixin, EventSectionBase):
     id: int
 
 
+TopicName = Annotated[str, StringConstraints(strip_whitespace=True, min_length=3, max_length=50)]
+
+
 class TopicBase(BaseModel):
     section_id: int | None = None
     name: str | None = None
 
 
-class TopicCreate(TopicBase):
-    pass
+class TopicCreate(BaseModel):
+    name: TopicName
+
+
+class TopicUpdate(BaseModel):
+    name: TopicName | None = None
+    section_id: int | None = Field(default=None, gt=0)
 
 
 class TopicRead(ORMModelMixin, TopicBase):
@@ -707,6 +715,7 @@ __all__ = [
     "EventSectionRead",
     "TopicBase",
     "TopicCreate",
+    "TopicUpdate",
     "TopicRead",
     "GroupBase",
     "GroupCreate",

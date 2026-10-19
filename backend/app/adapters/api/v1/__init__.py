@@ -1,33 +1,26 @@
 from fastapi import APIRouter
 
 from app.adapters.api.v1 import (
-    committee,
     auth,
+    committee,
+    events,
+    groups,
     juries,
     organizers,
     participant_rankings,
     participant_scores,
+    participants,
     people,
     person,
-    participants,
     poster_contents,
     score_history,
     section_juries,
+    sections,
     technical_requirements,
     topics,
     universities,
-    sections,
-    events,
     venues,
-    groups,
 )
-from app.adapters.api.v1.draw import DrawApiImpl
-from app.adapters.api.v1.draw_results import DrawResultsApiImpl
-from app.adapters.api.v1.topics import TopicsApiImpl
-from openapi_server.apis.draw_api import router as draw_router
-from openapi_server.apis.draw_results_api import router as draw_results_router
-from openapi_server.apis.topics_api import router as topics_router
-
 
 router = APIRouter()
 router.include_router(auth.router, prefix="/auth")
@@ -37,7 +30,6 @@ router.include_router(events.router, prefix="/events")
 router.include_router(venues.router, prefix="/venues")
 router.include_router(people.router, prefix="/people")
 router.include_router(organizers.router, prefix="/organizers")
-router.include_router(technical_requirements.router, prefix="/technical-requirements")
 router.include_router(poster_contents.router, prefix="/poster-contents")
 router.include_router(juries.router, prefix="/juries")
 router.include_router(participant_scores.router, prefix="/participants/{participant_id}/scores")
@@ -49,6 +41,4 @@ router.include_router(section_juries.router, prefix="/section-juries")
 router.include_router(committee.router)
 router.include_router(groups.router, prefix="/groups")
 router.include_router(person.router, prefix="/person")
-router.include_router(draw_router)
-router.include_router(draw_results_router)
-router.include_router(topics_router)
+router.include_router(topics.router, prefix="/topics")
