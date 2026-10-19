@@ -1,12 +1,13 @@
 # AGENTS.md
 
-## Repo layout — three independent projects
+## Repo layout
 
 | Path | Language | Package manager | Description |
 |------|----------|-----------------|-------------|
-| `backend/` | Python 3.12 | uv | FastAPI API + PostgreSQL (main deployable) |
+| `backend/` | Python 3.12 | uv | FastAPI API + PostgreSQL (the deployable) |
+| `docs/` | — | — | Technical specification and charters |
 
-Each project has its own dependencies, lockfile, and `.python-version`. Always run commands from the project directory.
+Always run commands from `backend/`.
 
 ## Backend — commands (all require `uv run` prefix)
 
@@ -17,8 +18,8 @@ uv run uvicorn app.main:app --reload     # dev server on :8000
 uv run alembic upgrade head              # apply migrations (DB must be running)
 uv run alembic revision -m "..." --autogenerate  # create new migration
 uv run pytest                            # run all tests (mock-based, no DB needed)
-uvx ruff check --fix                     # lint
-uvx ruff format                          # format
+uv run ruff check --fix                  # lint
+uv run ruff format                       # format
 docker compose up --build                # full stack (API + PG 16)
 ```
 
@@ -46,5 +47,5 @@ All tests use `MagicMock` / `AsyncMock` with FastAPI `TestClient` + `dependency_
 
 ## Pre-commit
 
-Installed at root: `ruff --fix` + `ruff format` (v0.11.0). Will catch issues before commit.
+Installed at root: `ruff --fix` + `ruff format`. Will catch issues before commit.
 
