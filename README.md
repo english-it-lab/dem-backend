@@ -1,80 +1,91 @@
-# Digital Event Manager API
+# Бэкенд (Digital Event Manager API)
 
-FastAPI + PostgreSQL backend bootstrapped with **uv**, **SQLAlchemy 2.0**, and **Alembic**. The codebase follows a layered layout (repository → service → adapter) so that persistence, business rules, and delivery stay isolated.
+FastAPI + PostgreSQL. Зависимости — **uv**, ORM — **SQLAlchemy 2.0** (async), миграции — **Alembic**. Код разбит на слои (repository → service → adapter), чтобы хранение, бизнес-правила и HTTP-доставка не смешивались.
 
-## Requirements
-- Python 3.12
-- [uv](https://github.com/astral-sh/uv) (already recorded via `pyproject.toml` + `uv.lock`)
-- Docker (optional but recommended for local infra)
+## Требования
 
-## Quick start
+- Python 3.12 (версия закреплена в `.python-version`)
+- [uv](https://github.com/astral-sh/uv) — зависимости описаны в `pyproject.toml` + `uv.lock`
+- Docker — для PostgreSQL (и, по желанию, для запуска всего стека)
+
+## Быстрый старт
+
 ```bash
 uv sync && cp .env.example .env
 docker compose up db -d
 uv run alembic upgrade head && uv run uvicorn app.main:app --reload
 ```
+
 API: `http://localhost:8000`, Swagger UI: `http://localhost:8000/docs`.
 
-Use `uv run <command>` to execute anything inside the virtual environment.
+Любую команду внутри виртуального окружения запускайте через `uv run <команда>`.
 
-## Project layout
+## Структура проекта
+
 ```
 app/
-  adapters/api        # FastAPI routers + dependencies (delivery layer)
-  core                # configuration
-  db                  # async engine and sessions
-  models              # SQLAlchemy ORM models (metadata used by Alembic)
-  repositories        # persistence layer
-  schemas             # Pydantic DTOs
-  services            # business logic layer
-alembic/              # migration environment + versions
-tests/                # pytest suite (mock-based, no database needed)
-docs/                 # technical specification and project charters
-Dockerfile            # production image built with uv
+  adapters/api        # роутеры FastAPI + DI-зависимости (слой доставки)
+  core                # конфигурация
+  db                  # async engine и сессии
+  models              # ORM-модели SQLAlchemy (metadata для Alembic)
+  repositories        # слой хранения
+  schemas             # Pydantic DTO
+  services            # бизнес-логика
+alembic/              # окружение миграций + версии
+tests/                # pytest (на моках, база не нужна)
+docs/                 # техническое задание и уставы проекта
+Dockerfile            # production-образ на uv
 ```
 
-## Run modes
-| Mode | Command | Notes |
-|------|---------|-------|
-| DB in Docker, API local (default) | `docker compose up db -d` + `uv run uvicorn app.main:app --reload` | `.env` has `DB_HOST=localhost`; fastest reload |
-| Everything in Docker | `docker compose up --build` | api container forces `DB_HOST=db`, mounts `app/` and reloads on change |
+Подробная карта и правила для участников — в `AGENTS.md`.
 
-Postgres is published on `localhost:5432` with the credentials from `.env`.
+## Режимы запуска
 
-The frontend reaches the API through a proxy on a relative `/api/v1` path (Vite dev server or nginx), so no CORS setup is needed for the default ports. For direct browser calls from another origin, add it to `CORS_ORIGINS` in `.env` (comma-separated).
+| Режим | Команда | Примечания |
+|-------|---------|------------|
+| БД в Docker, API локально (по умолчанию) | `docker compose up db -d` + `uv run uvicorn app.main:app --reload` | в `.env` стоит `DB_HOST=localhost`; самый быстрый hot-reload |
+| Всё в Docker | `docker compose up --build` | контейнер api сам ставит `DB_HOST=db`, монтирует `app/` и перезапускается при изменениях; миграции применяются на старте |
 
-## Database migrations
+PostgreSQL опубликован на `localhost:5432` с учётными данными из `.env`.
+
+Фронтенд ходит в API через прокси по относительному пути `/api/v1` (dev-сервер Vite или nginx), поэтому для стандартных портов CORS настраивать не нужно. Если браузер обращается к API напрямую с другого origin, добавьте его в `CORS_ORIGINS` в `.env` (через запятую).
+
+## Миграции
+
 ```bash
-# create a new revision
-uv run alembic revision --autogenerate -m "short message"
+# создать новую ревизию после изменения app/models
+uv run alembic revision --autogenerate -m "короткое описание"
 
-# apply migrations
+# применить миграции
 uv run alembic upgrade head
 
-# apply inside the running docker compose stack
+# применить внутри запущенного docker compose
 docker compose exec api uv run alembic upgrade head
 ```
-Alembic already knows about the async metadata via `app.models.Base`.
 
-## Sample flow (Universities)
-1. **Schema** – `app/schemas/university.py`
-2. **Repository** – `app/repositories/university.py`
-3. **Service** – `app/services/university.py`
-4. **Adapter** – `app/adapters/api/v1/universities.py`
+Alembic берёт metadata из `app.models.Base`. Проверяйте сгенерированный diff: autogenerate не видит переименования и часть ограничений.
 
-When adding new features/entities, repeat the same pattern so that routers depend only on services and never on repositories directly.
+## Как добавить сущность (на примере университетов)
 
-## Tests and linting
+1. **Схема** — `app/schemas/__init__.py` (все DTO в одном файле: `UniversityBase` / `UniversityCreate` / `UniversityRead` / `UniversityUpdate`)
+2. **Репозиторий** — `app/repositories/university.py`
+3. **Сервис** — `app/services/university.py`
+4. **Фабрика** — `get_university_service` в `app/adapters/api/dependencies.py`
+5. **Роутер** — `app/adapters/api/v1/universities.py`, подключение в `app/adapters/api/v1/__init__.py`
+6. **Тесты** — `tests/api/test_universities.py`
+
+Роутеры зависят только от сервисов и никогда не обращаются к репозиториям напрямую.
+
+## Тесты и линтер
+
 ```bash
 uv run pytest
 uv run ruff check .
 uv run ruff format .
 ```
 
+CI (`.github/workflows/ci.yml`) гоняет `ruff format --check`, `ruff check` и `pytest` на каждом PR; на push в `main` дополнительно собирается Docker-образ. Деплоя нет — сервер не арендуется.
+
 ## Swagger UI
 
-After starting the API server, you can open the interactive Swagger UI in your browser:
-
-```bash
-http://localhost:8000/docs
-```
+После запуска сервера интерактивная документация доступна по адресу `http://localhost:8000/docs`.
