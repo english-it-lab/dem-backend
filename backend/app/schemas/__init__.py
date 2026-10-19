@@ -5,7 +5,7 @@ from enum import StrEnum
 from typing import Annotated, Literal
 
 from annotated_types import MaxLen
-from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, StringConstraints, field_validator
 
 from app.enums.group import GroupStatus
 
@@ -221,17 +221,47 @@ class EventSectionRead(ORMModelMixin, EventSectionBase):
     id: int
 
 
+TopicName = Annotated[str, StringConstraints(strip_whitespace=True, min_length=3, max_length=50)]
+
+
 class TopicBase(BaseModel):
     section_id: int | None = None
     name: str | None = None
 
 
-class TopicCreate(TopicBase):
-    pass
+class TopicCreate(BaseModel):
+    name: TopicName
+
+
+class TopicUpdate(BaseModel):
+    name: TopicName | None = None
+    section_id: int | None = Field(default=None, gt=0)
 
 
 class TopicRead(ORMModelMixin, TopicBase):
     id: int
+
+
+class DrawTopicRead(BaseModel):
+    topic_id: int
+    topic_name: str
+
+
+class DrawGroupRead(BaseModel):
+    group_id: int
+    group_name: str
+
+
+class DrawResultRead(DrawGroupRead):
+    topics: list[DrawTopicRead] = Field(default_factory=list)
+
+
+class DrawRunResult(BaseModel):
+    section_id: int
+    results: list[DrawResultRead]
+    empty_groups: list[DrawGroupRead]
+    total_topics: int
+    total_groups: int
 
 
 class GroupBase(BaseModel):
@@ -256,7 +286,9 @@ class GroupRead(ORMModelMixin, GroupBase):
 
 
 class GroupFilter(BaseModel):
-    section_id: int = Field(
+    model_config = ConfigDict(populate_by_name=True)
+
+    section_id: int | None = Field(
         default=None,
         gt=0,
         alias="section-id",
@@ -705,7 +737,12 @@ __all__ = [
     "EventSectionRead",
     "TopicBase",
     "TopicCreate",
+    "TopicUpdate",
     "TopicRead",
+    "DrawTopicRead",
+    "DrawGroupRead",
+    "DrawResultRead",
+    "DrawRunResult",
     "GroupBase",
     "GroupCreate",
     "GroupUpdate",

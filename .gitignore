@@ -1,19 +1,10 @@
 .venv/
 .env
-__pycache__
+__pycache__/
+.pytest_cache/
+.ruff_cache/
 
 *.swp
 
-source/bot/database/instance/*.db
-
 .idea/
-.idea
 .DS_Store
-
-backend/2025_программа_science_kaleidoscope_итоговый_вариант.docx
-generated/
-
-backend/test_program.pdf
-.gitignore
-backend/test_program.docx
-backend/test_program.doc

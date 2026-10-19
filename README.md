@@ -1,12 +1,8 @@
-# Цифровой Управляющий Мероприятиями
+# Digital Event Manager — backend
 
-Добро пожаловать в Цифровой Управляющий Мероприятиями!
-Этот проект делался совместными усилиями студентов 171 и 173 групп магистратуры (2024 - 2025 учебный год).
+Backend of the Digital Event Manager (DEM): a FastAPI + PostgreSQL service for running student events
+(sections, participants, juries, scoring, topic draws, programme generation).
 
-## Развертывание
-1. Для развертывания этой ветки проекта необходим UV и Make.
-Его можно скачать самостоятельно или воспользоваться командой `make setup`.
-1. `make init` - инициализирует базу данных при ее отсутствии.
-1. `make run` - для запуска проекта.
-
-Также необходимо наличие `.env` - файла для корректной работы приложения.
+- `backend/` — the application. Start with [`backend/README.md`](backend/README.md).
+- `docs/` — technical specification and project charters.
+- `AGENTS.md` — orientation for coding agents.

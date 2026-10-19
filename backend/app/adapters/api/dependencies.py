@@ -9,9 +9,11 @@ from app.db.session import get_db_session
 from app.repositories.committee_member import CommitteeMemberRepository
 from app.repositories.course import CourseRepository
 from app.repositories.event import EventRepository
+from app.repositories.events import EventRepository as EventProgramRepository
 from app.repositories.faculty import FacultyRepository
 from app.repositories.group import GroupRepository
 from app.repositories.group_participant import GroupParticipantRepository
+from app.repositories.group_topic import GroupTopicRepository
 from app.repositories.jury import JuryRepository
 from app.repositories.jury_score import JuryScoreRepository
 from app.repositories.organizer import OrganizerRepository
@@ -29,10 +31,14 @@ from app.repositories.technical_requirement import (
 from app.repositories.textbook_level import TextbookLevelRepository
 from app.repositories.topic import TopicRepository
 from app.repositories.university import UniversityRepository
+from app.repositories.venues import VenueRepository
 from app.schemas import AuthPayload
 from app.services.auth import AuthService
 from app.services.committee import CommitteeService
+from app.services.doc_generator import DocGeneratorService
+from app.services.draw import DrawService
 from app.services.email_confirmation import EmailConfirmationService
+from app.services.events import EventProgramService
 from app.services.group import GroupService
 from app.services.group_invites import GroupInviteService
 from app.services.jury import JuryService
@@ -41,6 +47,7 @@ from app.services.jwt import JwtService
 from app.services.organizer import OrganizerService
 from app.services.participant import ParticipantService
 from app.services.participant_ranking import ParticipantRankingService
+from app.services.pdf_generator import PDFGeneratorService
 from app.services.person import PersonService
 from app.services.poster_content import PosterContentService
 from app.services.score_history import ScoreHistoryService
@@ -49,15 +56,6 @@ from app.services.section_jury import SectionJuryService
 from app.services.technical_requirement import TechnicalRequirementService
 from app.services.topic import TopicService
 from app.services.university import UniversityService
-
-"""
-Dependencies for event program generation (separate to avoid circular imports)
-"""
-from app.repositories.events import EventRepository
-from app.repositories.venues import VenueRepository
-from app.services.doc_generator import DocGeneratorService
-from app.services.events import EventProgramService
-from app.services.pdf_generator import PDFGeneratorService
 from app.services.venues import VenuesService
 
 
@@ -155,6 +153,16 @@ def get_topic_service(
     return TopicService(topic_repository)
 
 
+def get_draw_service(
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> DrawService:
+    return DrawService(
+        topic_repo=TopicRepository(session),
+        group_repo=GroupRepository(session),
+        group_topic_repo=GroupTopicRepository(session),
+    )
+
+
 def get_section_jury_service(
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> SectionJuryService:
@@ -178,7 +186,7 @@ def get_event_program_service(
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> EventProgramService:
     """Dependency for event program service."""
-    event_repo = EventRepository(session)
+    event_repo = EventProgramRepository(session)
     section_repo = SectionRepository(session)
     participant_repo = ParticipantRepository(session)
     committee_repo = CommitteeMemberRepository(session)

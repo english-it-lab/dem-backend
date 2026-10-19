@@ -19,6 +19,18 @@ dependencies = [
     "python-docx>=1.2.0",
 ]
 
+[dependency-groups]
+dev = [
+    "httpx",
+    "pytest",
+    "ruff",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+pythonpath = ["."]
+
 [tool.ruff]
 line-length = 119
 target-version = "py312"
@@ -39,12 +51,9 @@ select = [
 ignore = []
 
 [tool.ruff.lint.isort]
-known-first-party = ["backend"]
+known-first-party = ["app"]
 
 [tool.ruff.format]
 quote-style = "double"
 indent-style = "space"
 
-[tool.ruff.lint.per-file-ignores]
-"app/adapters/api/v1/__init__.py" = ["F401", "I001"]
-"app/adapters/api/dependencies.py" = ["E402", "F811"]

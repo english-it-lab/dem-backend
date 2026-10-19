@@ -15,25 +15,6 @@ cp .env.example .env   # customise credentials if needed
 ```
 Use `uv run <command>` to execute anything inside the virtual environment, e.g. `uv run uvicorn app.main:app --reload`.
 
-### Generate API
-
-#### Requirements
-- **C++ Build Tools**
-- **Rust toolchain**
-
-After all dependencies are installed, run the generation script:
-
-**Windows**
-```bash
-.\generate_api.bat
-```
-
-**Linux / macOS**
-```bash
-./generate_api.sh
-```
-
-
 ## Project layout
 ```
 app/
@@ -45,6 +26,7 @@ app/
   schemas             # Pydantic DTOs
   services            # business logic layer
 alembic/              # migration environment + versions
+tests/                # pytest suite (mock-based, no database needed)
 Dockerfile            # production image built with uv
 ```
 
@@ -81,6 +63,13 @@ Alembic already knows about the async metadata via `app.models.Base`.
 4. **Adapter** – `app/adapters/api/v1/universities.py`
 
 When adding new features/entities, repeat the same pattern so that routers depend only on services and never on repositories directly.
+
+## Tests and linting
+```bash
+uv run pytest
+uv run ruff check .
+uv run ruff format .
+```
 
 ## Swagger UI
 
