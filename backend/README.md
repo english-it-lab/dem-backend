@@ -7,13 +7,16 @@ FastAPI + PostgreSQL backend bootstrapped with **uv**, **SQLAlchemy 2.0**, and *
 - [uv](https://github.com/astral-sh/uv) (already recorded via `pyproject.toml` + `uv.lock`)
 - Docker (optional but recommended for local infra)
 
-## Installation
+## Quick start
 ```bash
 cd backend
-uv sync                # installs dependencies into .venv
-cp .env.example .env   # customise credentials if needed
+uv sync && cp .env.example .env
+docker compose up db -d
+uv run alembic upgrade head && uv run uvicorn app.main:app --reload
 ```
-Use `uv run <command>` to execute anything inside the virtual environment, e.g. `uv run uvicorn app.main:app --reload`.
+API: `http://localhost:8000`, Swagger UI: `http://localhost:8000/docs`.
+
+Use `uv run <command>` to execute anything inside the virtual environment.
 
 ## Project layout
 ```
@@ -30,17 +33,15 @@ tests/                # pytest suite (mock-based, no database needed)
 Dockerfile            # production image built with uv
 ```
 
-## Running locally
-```bash
-uv run uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
-```
+## Run modes
+| Mode | Command | Notes |
+|------|---------|-------|
+| DB in Docker, API local (default) | `docker compose up db -d` + `uv run uvicorn app.main:app --reload` | `.env` has `DB_HOST=localhost`; fastest reload |
+| Everything in Docker | `docker compose up --build` | api container forces `DB_HOST=db`, mounts `app/` and reloads on change |
 
-Or spin up everything (API + PostgreSQL) via Docker Compose:
-```bash
-cd backend
-docker compose up --build
-```
-Compose exposes API on `http://localhost:8000` and Postgres on `localhost:5432` with the credentials defined in `.env`.
+Postgres is published on `localhost:5432` with the credentials from `.env`.
+
+The frontend reaches the API through a proxy on a relative `/api/v1` path (Vite dev server or nginx), so no CORS setup is needed for the default ports. For direct browser calls from another origin, add it to `CORS_ORIGINS` in `.env` (comma-separated).
 
 ## Database migrations
 ```bash
@@ -50,9 +51,8 @@ uv run alembic revision --autogenerate -m "short message"
 # apply migrations
 uv run alembic upgrade head
 
-# apply inside running docker compose stack (defaults to `api` service)
-./scripts/migrate.sh            # or ./scripts/migrate.sh <service-name>
-CONTAINER_ID=abc123 ./scripts/migrate.sh  # override auto-detected container
+# apply inside the running docker compose stack
+docker compose exec api uv run alembic upgrade head
 ```
 Alembic already knows about the async metadata via `app.models.Base`.
 
