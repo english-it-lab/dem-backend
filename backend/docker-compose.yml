@@ -1,3 +1,5 @@
+# Full stack:        docker compose up --build
+# Database only:     docker compose up db -d   (then run the API locally with uv)
 services:
   api:
     build:
@@ -6,6 +8,9 @@ services:
     command: uv run uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
     env_file:
       - .env
+    environment:
+      # Inside compose the database is reachable by service name, whatever .env says.
+      DB_HOST: db
     volumes:
       - ./app:/app/app
       - ./main.py:/app/main.py
