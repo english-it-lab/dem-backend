@@ -3,6 +3,7 @@ from fastapi import APIRouter
 from app.adapters.api.v1 import (
     auth,
     committee,
+    draw,
     events,
     groups,
     juries,
@@ -42,3 +43,4 @@ router.include_router(committee.router)
 router.include_router(groups.router, prefix="/groups")
 router.include_router(person.router, prefix="/person")
 router.include_router(topics.router, prefix="/topics")
+router.include_router(draw.router)

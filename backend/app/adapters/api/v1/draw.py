@@ -1,30 +1,24 @@
-from openapi_server.apis.draw_api_base import BaseDrawApi
+from typing import Annotated
 
-from app.db.session import get_db_session
-from app.repositories.group import GroupRepository
-from app.repositories.group_topic import GroupTopicRepository
-from app.repositories.topic import TopicRepository
+from fastapi import APIRouter, Depends, Query
+
+from app.adapters.api.dependencies import get_draw_service
+from app.schemas import DrawResultRead, DrawRunResult
 from app.services.draw import DrawService
 
+router = APIRouter(tags=["Draw"])
 
-class DrawApiImpl(BaseDrawApi):
-    """
-    Реализация запуска жеребьёвки.
-    """
+SectionIdQuery = Annotated[int, Query(alias="sectionId", ge=1)]
+DrawServiceDep = Annotated[DrawService, Depends(get_draw_service)]
 
-    # _draw_results_db = {}
 
-    async def draw_run_post(
-        self,
-        sectionId: int,
-    ) -> None:
-        async for session in get_db_session():
-            topic_repo = TopicRepository(session)
-            group_repo = GroupRepository(session)
-            group_topic_repo = GroupTopicRepository(session)
+@router.post("/draw/run", response_model=DrawRunResult)
+async def run_draw(section_id: SectionIdQuery, service: DrawServiceDep) -> DrawRunResult:
+    """Randomly assign the section's topics to its groups. Replaces the previous draw."""
+    return await service.run_draw(section_id)
 
-            service = DrawService(topic_repo, group_repo, group_topic_repo)
 
-            await service.run_draw(sectionId)  # results
-            # Сохраняем в памяти (для обратной совместимости)
-            # self._draw_results_db[sectionId] = results
+@router.get("/draw-results", response_model=list[DrawResultRead])
+async def get_draw_results(section_id: SectionIdQuery, service: DrawServiceDep) -> list[DrawResultRead]:
+    """Return the current topic assignment for the section's groups."""
+    return await service.get_results(section_id)

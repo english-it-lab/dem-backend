@@ -1,5 +1,6 @@
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.models import Group, GroupTopic
 
@@ -30,6 +31,12 @@ class GroupTopicRepository:
     async def get_by_section(self, section_id: int) -> list[GroupTopic]:
         """Get all draw results for a section."""
 
-        stmt = select(GroupTopic).join(Group).where(Group.section_id == section_id)
+        stmt = (
+            select(GroupTopic)
+            .join(Group)
+            .where(Group.section_id == section_id)
+            .options(selectinload(GroupTopic.group), selectinload(GroupTopic.topic))
+            .order_by(GroupTopic.group_id, GroupTopic.id)
+        )
         result = await self._session.execute(stmt)
         return result.scalars().all()

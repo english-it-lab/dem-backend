@@ -1,15 +1,18 @@
+import logging
 import random
 
-from fastapi import HTTPException
+from fastapi import HTTPException, status
 
 from app.repositories.group import GroupRepository
 from app.repositories.group_topic import GroupTopicRepository
 from app.repositories.topic import TopicRepository
-from app.schemas import GroupFilter
+from app.schemas import DrawGroupRead, DrawResultRead, DrawRunResult, DrawTopicRead, GroupFilter
+
+logger = logging.getLogger(__name__)
 
 
 class DrawService:
-    """Service for draw logic."""
+    """Randomly distributes a section's topics between its groups."""
 
     def __init__(
         self,
@@ -21,65 +24,67 @@ class DrawService:
         self.group_repo = group_repo
         self.group_topic_repo = group_topic_repo
 
-    async def run_draw(self, section_id: int) -> dict:
-        """Run draw for a section."""
-        topics = await self.topic_repo.list_by_section(section_id)
-
-        groups = await self.group_repo.list_groups(GroupFilter(section_id=section_id))
+    async def run_draw(self, section_id: int) -> DrawRunResult:
+        """Run the draw for a section, replacing any previous assignment."""
+        topics = list(await self.topic_repo.list_topics(section_id))
+        groups = list(await self.group_repo.list_groups(GroupFilter(section_id=section_id)))
 
         if not topics:
-            raise HTTPException(409, "Нет тем для распределения в секции")
+            raise HTTPException(status.HTTP_409_CONFLICT, "Нет тем для распределения в секции")
         if not groups:
-            raise HTTPException(409, "Нет групп для распределения в секции")
+            raise HTTPException(status.HTTP_409_CONFLICT, "Нет групп для распределения в секции")
 
         shuffled = random.sample(topics, len(topics))
-        num_topics = len(shuffled)
-        num_groups = len(groups)
+        # Distribute as evenly as possible; the first `remainder` groups get one extra topic.
+        base, remainder = divmod(len(shuffled), len(groups))
 
-        results = []
-        empty_groups = []  # список групп без тем
+        results: list[DrawResultRead] = []
+        empty_groups: list[DrawGroupRead] = []
         topic_idx = 0
+        for i, group in enumerate(groups):
+            count = base + (1 if i < remainder else 0)
+            assigned = shuffled[topic_idx : topic_idx + count]
+            topic_idx += count
+            results.append(
+                DrawResultRead(
+                    group_id=group.id,
+                    group_name=group.name,
+                    topics=[DrawTopicRead(topic_id=t.id, topic_name=t.name) for t in assigned],
+                )
+            )
+            if not assigned:
+                empty_groups.append(DrawGroupRead(group_id=group.id, group_name=group.name))
 
-        if num_topics <= num_groups:
-            for group in groups:
-                if topic_idx < num_topics:
-                    results.append(
-                        {
-                            "group_id": group.id,
-                            "group_name": group.name,
-                            "topics": [{"topic_id": shuffled[topic_idx].id, "topic_name": shuffled[topic_idx].name}],
-                        }
-                    )
-                    topic_idx += 1
-                else:
-                    results.append({"group_id": group.id, "group_name": group.name, "topics": []})
-                    empty_groups.append({"group_id": group.id, "group_name": group.name})
-        else:
-            base = num_topics // num_groups
-            remainder = num_topics % num_groups
-
-            for i, group in enumerate(groups):
-                topics_count = base + (1 if i < remainder else 0)
-                group_topics = []
-                for _ in range(topics_count):
-                    group_topics.append({"topic_id": shuffled[topic_idx].id, "topic_name": shuffled[topic_idx].name})
-                    topic_idx += 1
-                results.append({"group_id": group.id, "group_name": group.name, "topics": group_topics})
-
-        await self.group_topic_repo.clear_section(section_id)  # Чистим предыдущую жеребьевку
+        await self.group_topic_repo.clear_section(section_id)
         for result in results:
-            for topic in result["topics"]:
-                await self.group_topic_repo.create(result["group_id"], topic["topic_id"])
+            for topic in result.topics:
+                await self.group_topic_repo.create(result.group_id, topic.topic_id)
 
-        # Логируем пустые группы
         if empty_groups:
-            print(f"[WARN] Секция {section_id}: группы без тем: {[g['group_name'] for g in empty_groups]}")
-            # TODO: отправить уведомление организатору
+            logger.warning("Section %s: groups without topics: %s", section_id, [g.group_name for g in empty_groups])
 
-        return {
-            "section_id": section_id,
-            "results": results,
-            "empty_groups": empty_groups,
-            "total_topics": num_topics,
-            "total_groups": num_groups,
-        }
+        return DrawRunResult(
+            section_id=section_id,
+            results=results,
+            empty_groups=empty_groups,
+            total_topics=len(topics),
+            total_groups=len(groups),
+        )
+
+    async def get_results(self, section_id: int) -> list[DrawResultRead]:
+        """Return the persisted draw for a section; groups without topics are included with an empty list."""
+        groups = await self.group_repo.list_groups(GroupFilter(section_id=section_id))
+        rows = await self.group_topic_repo.get_by_section(section_id)
+
+        topics_by_group: dict[int, list[DrawTopicRead]] = {group.id: [] for group in groups}
+        for row in rows:
+            if row.topic is None:
+                continue
+            topics_by_group.setdefault(row.group_id, []).append(
+                DrawTopicRead(topic_id=row.topic.id, topic_name=row.topic.name)
+            )
+
+        return [
+            DrawResultRead(group_id=group.id, group_name=group.name, topics=topics_by_group[group.id])
+            for group in groups
+        ]

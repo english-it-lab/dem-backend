@@ -13,6 +13,7 @@ from app.repositories.events import EventRepository as EventProgramRepository
 from app.repositories.faculty import FacultyRepository
 from app.repositories.group import GroupRepository
 from app.repositories.group_participant import GroupParticipantRepository
+from app.repositories.group_topic import GroupTopicRepository
 from app.repositories.jury import JuryRepository
 from app.repositories.jury_score import JuryScoreRepository
 from app.repositories.organizer import OrganizerRepository
@@ -35,6 +36,7 @@ from app.schemas import AuthPayload
 from app.services.auth import AuthService
 from app.services.committee import CommitteeService
 from app.services.doc_generator import DocGeneratorService
+from app.services.draw import DrawService
 from app.services.email_confirmation import EmailConfirmationService
 from app.services.events import EventProgramService
 from app.services.group import GroupService
@@ -149,6 +151,16 @@ def get_topic_service(
 ) -> TopicService:
     topic_repository = TopicRepository(session)
     return TopicService(topic_repository)
+
+
+def get_draw_service(
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> DrawService:
+    return DrawService(
+        topic_repo=TopicRepository(session),
+        group_repo=GroupRepository(session),
+        group_topic_repo=GroupTopicRepository(session),
+    )
 
 
 def get_section_jury_service(

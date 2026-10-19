@@ -242,6 +242,28 @@ class TopicRead(ORMModelMixin, TopicBase):
     id: int
 
 
+class DrawTopicRead(BaseModel):
+    topic_id: int
+    topic_name: str
+
+
+class DrawGroupRead(BaseModel):
+    group_id: int
+    group_name: str
+
+
+class DrawResultRead(DrawGroupRead):
+    topics: list[DrawTopicRead] = Field(default_factory=list)
+
+
+class DrawRunResult(BaseModel):
+    section_id: int
+    results: list[DrawResultRead]
+    empty_groups: list[DrawGroupRead]
+    total_topics: int
+    total_groups: int
+
+
 class GroupBase(BaseModel):
     section_id: int | None = None
     name: str | None = None
@@ -717,6 +739,10 @@ __all__ = [
     "TopicCreate",
     "TopicUpdate",
     "TopicRead",
+    "DrawTopicRead",
+    "DrawGroupRead",
+    "DrawResultRead",
+    "DrawRunResult",
     "GroupBase",
     "GroupCreate",
     "GroupUpdate",
