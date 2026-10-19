@@ -1,11 +1,11 @@
 from collections.abc import Sequence
 
 from app.models import Venue
-from app.repositories.venues import VenueRepository
+from app.repositories.venue import VenueRepository
 from app.schemas import VenueCreate
 
 
-class VenuesService:
+class VenueService:
     def __init__(self, repository: VenueRepository) -> None:
         self._repository = repository
 

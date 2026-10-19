@@ -1,17 +1,16 @@
 from unittest.mock import MagicMock
 
 from app.adapters.api import dependencies
-from app.repositories.event import EventRepository as SectionEventRepository
-from app.repositories.events import EventRepository as EventProgramRepository
+from app.repositories.event import EventRepository
 
 
-def test_section_service_gets_repository_with_exists_by_id():
+def test_section_service_gets_event_repository():
     service = dependencies.get_section_service(MagicMock())
 
-    assert isinstance(service._event_repository, SectionEventRepository)
+    assert isinstance(service._event_repository, EventRepository)
 
 
-def test_event_program_service_gets_program_repository():
+def test_event_program_service_gets_event_repository():
     service = dependencies.get_event_program_service(MagicMock())
 
-    assert isinstance(service._event_repo, EventProgramRepository)
+    assert isinstance(service._event_repo, EventRepository)

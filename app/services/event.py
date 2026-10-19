@@ -2,7 +2,7 @@ from collections.abc import Sequence
 
 from app.models import Event
 from app.repositories.committee_member import CommitteeMemberRepository
-from app.repositories.events import EventRepository
+from app.repositories.event import EventRepository
 from app.repositories.participant import ParticipantRepository
 from app.repositories.section import SectionRepository
 from app.repositories.section_jury import SectionJuryRepository
